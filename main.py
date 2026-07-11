@@ -69,73 +69,38 @@ async def index():
     return HTMLResponse(content=html_path.read_text(encoding="utf-8"))
 
 
-# ── 占位子页面（稍后实现具体功能）──
+# ── 浏览子页面 ──
 
 @app.get("/words", response_class=HTMLResponse)
 async def words_page():
-    return HTMLResponse(content=_placeholder_page("总单词", "words"))
+    return _browse_page("words")
 
 @app.get("/meanings", response_class=HTMLResponse)
 async def meanings_page():
-    return HTMLResponse(content=_placeholder_page("总释义", "meanings"))
+    return _browse_page("meanings")
 
-@app.get("/synonyms-antonyms", response_class=HTMLResponse)
+@app.get("/synonyms", response_class=HTMLResponse)
 async def synonyms_page():
-    return HTMLResponse(content=_placeholder_page("近义词 / 反义词", "synonyms-antonyms"))
+    return _browse_page("synonyms")
 
-def _placeholder_page(title: str, page_id: str) -> str:
-    return f"""<!DOCTYPE html>
-<html lang="zh-CN" data-theme="light">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{title} — WordStudy</title>
-    <style>
-        *,*::before,*::after {{ box-sizing: border-box; margin: 0; padding: 0; }}
-        :root {{ --bg-body: #F1F5F9; --text-primary: #0F172A; --text-secondary: #475569; --color-primary: #4F46E5; --color-accent: #F59E0B; --radius-lg: 20px; }}
-        [data-theme="dark"] {{ --bg-body: #0B1121; --text-primary: #F1F5F9; --text-secondary: #94A3B8; }}
-        body {{
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: var(--bg-body); color: var(--text-primary);
-            min-height: 100vh; display: flex; align-items: center; justify-content: center;
-            transition: background 0.4s, color 0.4s;
-        }}
-        .placeholder-card {{
-            text-align: center; padding: 48px 40px;
-            background: rgba(255,255,255,0.72); backdrop-filter: blur(16px);
-            border: 1px solid rgba(255,255,255,0.5); border-radius: var(--radius-lg);
-            box-shadow: 0 8px 32px rgba(0,0,0,0.06); max-width: 480px; width: 90%;
-        }}
-        [data-theme="dark"] .placeholder-card {{ background: rgba(30,41,59,0.68); border-color: rgba(255,255,255,0.06); }}
-        .placeholder-card .icon {{ font-size: 3rem; margin-bottom: 16px; }}
-        .placeholder-card h1 {{
-            font-size: 1.6rem; font-weight: 800;
-            background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-            background-clip: text; margin-bottom: 8px;
-        }}
-        .placeholder-card p {{ color: var(--text-secondary); font-size: 0.95rem; line-height: 1.7; margin-bottom: 24px; }}
-        .back-btn {{
-            display: inline-flex; align-items: center; gap: 6px;
-            padding: 10px 22px; background: var(--color-primary); color: #fff;
-            border: none; border-radius: 12px; font-size: 0.9rem; font-weight: 600;
-            cursor: pointer; text-decoration: none; transition: all 0.22s cubic-bezier(0.25, 0.8, 0.25, 1);
-        }}
-        .back-btn:hover {{ background: #4338CA; box-shadow: 0 4px 16px rgba(79,70,229,0.3); transform: translateY(-2px); }}
-    </style>
-</head>
-<body>
-    <div class="placeholder-card">
-        <div class="icon">🚧</div>
-        <h1>{title}</h1>
-        <p>此页面正在建设中，稍后将为你呈现完整功能。<br>请先返回主页使用现有功能。</p>
-        <a href="/" class="back-btn">← 返回主页</a>
-    </div>
-    <script>
-        document.documentElement.setAttribute('data-theme', localStorage.getItem('ws-theme') || 'light');
-    </script>
-</body>
-</html>"""
+@app.get("/antonyms", response_class=HTMLResponse)
+async def antonyms_page():
+    return _browse_page("antonyms")
+
+def _browse_page(page: str) -> str:
+    template = BASE_DIR / "templates" / "browse.html"
+    html = template.read_text(encoding="utf-8")
+    title_map = {
+        "words": "总单词",
+        "meanings": "总释义",
+        "synonyms": "近义词",
+        "antonyms": "反义词",
+    }
+    title = title_map.get(page, page)
+    # 替换页面标题和 data-page 属性
+    html = html.replace("__PAGE_TITLE__", title)
+    html = html.replace("__PAGE_ID__", page)
+    return html
 
 
 # 路由注册

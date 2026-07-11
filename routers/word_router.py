@@ -27,15 +27,17 @@ from services.log_service import log_cypher
 from models.sqlite_client import insert_word_log, get_recent_logs
 from tools.word_tools import (
     search_word, create_word_node, update_word_query_times, append_word_resource,
+    get_all_words_grouped,
 )
 from tools.meaning_tools import (
     get_word_meanings, create_meaning_node, add_means_to_list,
     update_mean_query_times, find_meaning_node,
     find_meaning_cross_word, attach_word_to_meaning,
-    delete_meaning_relation,
+    delete_meaning_relation, get_all_meanings,
 )
 from tools.relation_tools import (
     create_word_synonym_rel, create_word_antonym_rel, delete_word_rel,
+    get_synonym_clusters, get_antonym_clusters,
 )
 from models.neo4j_client import get_graph
 
@@ -467,6 +469,55 @@ def word_meanings(word: str = Query(..., min_length=1, description="单词")):
 from datetime import date as dt_date
 from models.sqlite_client import get_daily_words_today, save_daily_words
 import random
+
+
+# ══════════════════════════════════════════════════════════
+#  Browse 浏览页面 API（总单词 / 总释义 / 近义词 / 反义词）
+# ══════════════════════════════════════════════════════════
+
+@router.get("/browse/words")
+def api_browse_words():
+    """获取所有单词，按首字母分组，含各词性释义。"""
+    try:
+        grouped = get_all_words_grouped()
+        return {"ok": True, "data": grouped}
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)}
+
+
+@router.get("/browse/meanings")
+def api_browse_meanings():
+    """获取所有释义节点及其关联的单词。"""
+    try:
+        meanings = get_all_meanings()
+        return {"ok": True, "data": meanings}
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)}
+
+
+@router.get("/browse/synonyms")
+def api_browse_synonyms():
+    """获取近义词簇。"""
+    try:
+        clusters = get_synonym_clusters()
+        return {"ok": True, "data": clusters}
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)}
+
+
+@router.get("/browse/antonyms")
+def api_browse_antonyms():
+    """获取反义词簇。"""
+    try:
+        clusters = get_antonym_clusters()
+        return {"ok": True, "data": clusters}
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)}
+
+
+# ══════════════════════════════════════════════════════════
+#  每日背诵单词 API（续）
+# ══════════════════════════════════════════════════════════
 
 
 @router.get("/daily-words")

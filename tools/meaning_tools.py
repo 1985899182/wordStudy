@@ -197,6 +197,46 @@ def get_words_of_meaning_node(node_id: str) -> list[str]:
     return [r.get("word_name", "") for r in results]
 
 
+def get_all_meanings() -> list[dict]:
+    """获取所有 Meaning 节点及其关联的单词列表。
+
+    Returns: [{element_id, pos: str, means_text: str, words: [str]}, ...]
+    """
+    graph = get_graph()
+    cypher = """
+    MATCH (m)
+    WHERE m:Noun OR m:Verb OR m:Adjective OR m:Adverb
+    OPTIONAL MATCH (w:Word)-[:TRANSLATION_INTO]->(m)
+    RETURN elementId(m) AS element_id, labels(m) AS pos_labels,
+           m.means AS means, collect(DISTINCT w.name) AS words
+    """
+    log_cypher(cypher, {})
+    rows = graph.query(cypher)
+
+    pos_map = {"Noun": "n.", "Verb": "v.", "Adverb": "adv.", "Adjective": "adj."}
+    result = []
+    for row in rows:
+        pos_labels = row.get("pos_labels") or []
+        pos_abbr = ""
+        for label in pos_labels:
+            abbr = pos_map.get(label)
+            if abbr:
+                pos_abbr = abbr
+                break
+        means_list = row.get("means") or []
+        words_list = row.get("words") or []
+        # 过滤掉 null
+        words_list = [w for w in words_list if w]
+        means_text = "，".join(means_list)
+        result.append({
+            "element_id": row.get("element_id", ""),
+            "pos": pos_abbr,
+            "means_text": means_text,
+            "words": sorted(words_list),
+        })
+    return result
+
+
 def delete_meaning_relation(word_name: str, pos_label: str, meaning: str) -> dict:
     """删除单词的某条释义关系（参数化 Cypher，非 LLM 生成）。
 

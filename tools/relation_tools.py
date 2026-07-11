@@ -141,3 +141,107 @@ def match_antonyms_of_word(word_name: str) -> list[dict]:
 def _to_label(pos: str) -> str:
     mapping = {"noun": "Noun", "verb": "Verb", "adjective": "Adjective", "adverb": "Adverb"}
     return mapping.get(pos, pos)
+
+
+def get_synonym_clusters() -> list[dict]:
+    """获取所有 Word 层级的近义词簇（通过 SYNONYM 关系连接）。
+
+    使用 BFS/DFS 将连通分量分组为簇。
+    Returns: [{words: [{word, meanings: {pos_abbr: [meaning, ...]}}], pairs: [[a,b],...]}, ...]
+    """
+    return _get_word_rel_clusters("SYNONYM")
+
+
+def get_antonym_clusters() -> list[dict]:
+    """获取所有 Word 层级的反义词簇（通过 ANTONYM 关系连接）。"""
+    return _get_word_rel_clusters("ANTONYM")
+
+
+def _get_word_rel_clusters(rel_type: str) -> list[dict]:
+    """通用：获取 Word 层级关系簇。"""
+    graph = get_graph()
+    cypher = f"""
+    MATCH (w1:Word)-[r:{rel_type}]-(w2:Word)
+    OPTIONAL MATCH (w1)-[:TRANSLATION_INTO]->(m1)
+    WHERE m1:Noun OR m1:Verb OR m1:Adjective OR m1:Adverb
+    OPTIONAL MATCH (w2)-[:TRANSLATION_INTO]->(m2)
+    WHERE m2:Noun OR m2:Verb OR m2:Adjective OR m2:Adverb
+    RETURN w1.name AS word1, w2.name AS word2,
+           labels(m1) AS pos1, m1.means AS means1,
+           labels(m2) AS pos2, m2.means AS means2
+    """
+    log_cypher(cypher, {})
+    rows = graph.query(cypher)
+
+    # 构建邻接表和无向图中所有节点
+    adj: dict[str, set[str]] = {}
+    word_meanings: dict[str, dict[str, list[str]]] = {}
+    pos_map = {"Noun": "n.", "Verb": "v.", "Adjective": "adj.", "Adverb": "adv."}
+
+    for row in rows:
+        w1 = row.get("word1", "")
+        w2 = row.get("word2", "")
+        if not w1 or not w2 or w1 == w2:
+            continue
+
+        adj.setdefault(w1, set()).add(w2)
+        adj.setdefault(w2, set()).add(w1)
+
+        # 收集每个单词的释义
+        for w, pos_labels_raw, means_raw in [(w1, row.get("pos1"), row.get("means1")),
+                                               (w2, row.get("pos2"), row.get("means2"))]:
+            if w not in word_meanings:
+                word_meanings[w] = {}
+            pos_labels = pos_labels_raw or []
+            means = means_raw or []
+            for label in pos_labels:
+                abbr = pos_map.get(label)
+                if not abbr:
+                    continue
+                word_meanings[w].setdefault(abbr, [])
+                for m in means:
+                    if m not in word_meanings[w][abbr]:
+                        word_meanings[w][abbr].append(m)
+
+    # DFS 找连通分量
+    visited: set[str] = set()
+    clusters: list[dict] = []
+
+    for node in adj:
+        if node in visited:
+            continue
+        # BFS 收集簇
+        component: list[str] = []
+        stack = [node]
+        while stack:
+            cur = stack.pop()
+            if cur in visited:
+                continue
+            visited.add(cur)
+            component.append(cur)
+            for nb in adj.get(cur, []):
+                if nb not in visited:
+                    stack.append(nb)
+
+        # 收集簇内单词及其释义
+        words_data = []
+        for w in sorted(component):
+            words_data.append({
+                "word": w,
+                "meanings": word_meanings.get(w, {}),
+            })
+
+        # 收集簇内所有边对
+        pairs = []
+        seen_pairs = set()
+        for w in component:
+            for nb in adj.get(w, []):
+                pair_key = tuple(sorted([w, nb]))
+                if pair_key not in seen_pairs:
+                    seen_pairs.add(pair_key)
+                    pairs.append([w, nb])
+
+        if words_data:
+            clusters.append({"words": words_data, "pairs": pairs})
+
+    return clusters
