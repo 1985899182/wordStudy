@@ -1,0 +1,1253 @@
+﻿﻿﻿﻿﻿﻿﻿<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WordStudy — 英语单词知识图谱</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+<div class="app-container">
+
+<!-- ═══════════ Header ═══════════ -->
+<header class="app-header">
+    <h1>WordStudy</h1>
+    <div class="header-actions">
+        <kbd class="shortcut-hint" onclick="openShortcuts()" title="快捷键面板">?</kbd>
+        <div class="theme-toggle" onclick="toggleTheme()" title="切换暗色/亮色模式">🌙</div>
+        <span class="help-icon" onclick="showHelp('WordStudy 是一个英语单词知识图谱学习系统。你可以提取文本中的单词，为它们添加中文释义，搜索近义词/反义词，并通过 AI 进行自然语言查询。')">?</span>
+    </div>
+</header>
+
+<!-- ═══════════ 箱子①：侧边栏 ═══════════ -->
+<aside class="sidebar" id="sidebar">
+    <div class="search-box-wrapper">
+        <input type="search" class="sidebar-search" id="sidebarSearch" placeholder="输入单词进行查询" autocomplete="off" />
+        <span class="search-box-icon">🔍</span>
+        <div class="search-suggestions" id="searchSuggestions">
+            <div class="search-suggestions-inner" id="searchSuggestionsInner"></div>
+        </div>
+    </div>
+
+    <!-- 共享面板（查询结果 + 每日背诵） -->
+    <div class="search-result-panel" id="sharedPanel">
+        <div class="panel-tabs">
+            <button class="panel-tab active" data-tab="search">查询结果</button>
+            <button class="panel-tab" data-tab="daily">每日背诵</button>
+        </div>
+        <!-- 箱子①：查询结果 -->
+        <div class="panel-box" id="searchResultBox">
+            <div class="search-result-empty" id="searchResultEmpty"></div>
+        </div>
+        <!-- 箱子②：每日背诵 -->
+        <div class="panel-box hidden" id="dailyWordsBox">
+            <div class="daily-section" id="dailySection">
+                <!-- 动态填充 -->
+            </div>
+        </div>
+    </div>
+</aside>
+
+<!-- ═══════════ Toggle ═══════════ -->
+<div class="toggle-sidebar" id="toggleSidebarBtn">◀</div>
+
+<!-- ═══════════ 箱子②：主体 ═══════════ -->
+<main class="main-content" id="mainContent">
+<div class="content-wrapper">
+
+    <!-- Hero 导航 -->
+    <div class="hero-section">
+        <div class="hero-content">
+            <span>&nbsp;&nbsp;</span>
+            <a class="stat-card" href="/words"><span class="stat-label">总单词</span></a>
+            <span>&nbsp;&nbsp;</span>
+            <a class="stat-card" href="/meanings"><span class="stat-label">总释义</span></a>
+            <span>&nbsp;&nbsp;</span>
+            <a class="stat-card" href="/synonyms-antonyms"><span class="stat-label">近义词</span></a>
+            <span>&nbsp;&nbsp;</span>
+            <a class="stat-card" href="/synonyms-antonyms"><span class="stat-label">反义词</span></a>
+        </div>
+    </div>
+
+    <!-- Step 1: 单词提取 -->
+    <div class="section" id="step1Section">
+        <div class="section-header">
+            <h2>Step 1 — 输入英文文本，提取单词</h2>
+            <span class="help-icon" onclick="showHelp('粘贴一段英文文本（如新闻、文章段落），系统会用 AI 自动提取其中的英文单词。已存在的单词会打 ✓。')">?</span>
+        </div>
+        <textarea id="inputText" rows="4" placeholder="请输入英文文本，例如：The quick brown fox jumps over the lazy dog..."></textarea>
+        <div class="char-counter" id="charCounter"></div>
+        <div class="gap-sm mt-sm">
+            <button class="btn-primary" id="extractBtn">
+                <span id="extractBtnText">提取单词</span>
+            </button>
+            <span class="help-icon-inline" onclick="showHelp('AI 分析文本并识别所有英文单词。Ctrl+Enter 快速提取。')">?</span>
+        </div>
+        <div id="extractSpinner" class="spinner-inline hidden">AI 正在分析文本并提取单词...</div>
+    </div>
+
+    <!-- Step 2: 单词管理 -->
+    <div id="step2Section" class="section hidden">
+        <div class="section-header">
+            <h2>Step 2 — 选择单词，录入释义</h2>
+            <span class="help-icon" onclick="showHelp('点击单词 chip 选中一个单词，添加中文释义。')">?</span>
+        </div>
+
+        <div id="wordChips" class="chips"></div>
+
+        <div id="wordDetail" class="hidden">
+            <div class="section-title">
+                <span id="currentWordLabel"></span>
+                <span class="help-icon-inline" onclick="showHelp('展示该单词已有的释义和当前会话新增的释义。')">?</span>
+            </div>
+
+            <div id="existingMeanings" class="existing-box"></div>
+
+            <div class="section-title">添加释义
+                <span class="help-icon-inline" onclick="showHelp('选择词性，输入中文释义。AI 校验词性和语义。')">?</span>
+            </div>
+            <div class="form-row">
+                <select id="posSelect">
+                    <option value="noun">名词 noun</option>
+                    <option value="verb">动词 verb</option>
+                    <option value="adjective">形容词 adjective</option>
+                    <option value="adverb">副词 adverb</option>
+                </select>
+                <input id="meaningInput" class="input-block" placeholder="输入中文释义" list="meaningSuggestions" autocomplete="off" />
+                <datalist id="meaningSuggestions"></datalist>
+                <button class="btn-sm btn-primary" id="addMeaningBtn">
+                    <span id="addMeaningBtnText">添加</span>
+                </button>
+            </div>
+            <div id="posWarning" class="warning-box hidden">
+                <p id="posWarningText"></p>
+                <button onclick="confirmAddMeaning()" class="btn-sm">知道了</button>
+            </div>
+            <div id="addedMeanings"></div>
+
+            <!-- 近义/反义 -->
+            <div class="section-title mt-md">
+                <span class="collapsible" id="synToggle">近义词 / 反义词 <span id="synArrow">▶</span></span>
+                <span class="help-icon-inline" onclick="showHelp('Datamuse 搜索后加入待保存列表。')">?</span>
+            </div>
+            <div id="synContent" class="collapsible-content">
+                <div class="syn-buttons">
+                    <button class="btn-sm" id="btnSynonym">搜索近义词</button>
+                    <button class="btn-sm" id="btnAntonym">搜索反义词</button>
+                </div>
+                <div id="synSpinner" class="spinner-inline hidden">Datamuse 搜索中...</div>
+                <div id="synResults"></div>
+                <div id="confirmedWordRels" class="confirmed-links"></div>
+            </div>
+
+            <!-- 删除释义 -->
+            <div class="section-title mt-md">
+                <span class="collapsible" id="delToggle">管理已有释义 <span id="delArrow">▶</span></span>
+                <span class="help-icon-inline" onclick="showHelp('删除释义及关系，不可撤销。')">?</span>
+            </div>
+            <div id="deleteModule" class="collapsible-content">
+                <div id="deleteMeaningList" class="delete-module"></div>
+                <div id="deleteSpinner" class="spinner-inline hidden">删除中...</div>
+            </div>
+        </div>
+
+        <div class="form-row mt-md">
+            <input id="resourceInput" class="input-block" placeholder="单词来源" value="手动录入" />
+        </div>
+
+        <div class="gap-sm">
+            <button class="btn-primary" id="saveBtn">
+                <span id="saveBtnText">保存到 Neo4j</span>
+            </button>
+            <span class="help-icon" onclick="showHelp('将已添加释义的单词保存到 Neo4j。Ctrl+S 快速保存。')">?</span>
+        </div>
+        <div id="saveResult" class="save-result"></div>
+    </div>
+
+    <!-- AI 查询 -->
+    <div class="section" id="aiSection">
+        <div class="section-header">
+            <h2>AI 智能查询</h2>
+            <span class="help-icon" onclick="showHelp('用自然语言描述，AI 自动生成 Cypher 查询。Enter 提交。')">?</span>
+        </div>
+        <div class="ai-query-block">
+            <input id="aiQuery" class="input-block" placeholder="用自然语言描述你想查什么，例如：「所有含 苹果 释义的单词」" autocomplete="off" />
+            <button class="btn-primary" id="aiQueryBtn">查询</button>
+        </div>
+        <div id="aiResult" class="result-box"></div>
+    </div>
+
+</div>
+</main>
+
+</div>
+
+<!-- ═══════ Modals ═══════ -->
+<div id="helpModal" class="modal-overlay hidden" onclick="closeHelp()">
+    <div class="modal-popup" onclick="event.stopPropagation()">
+        <span class="modal-close" onclick="closeHelp()">&times;</span>
+        <h4>功能说明</h4>
+        <p id="helpText"></p>
+    </div>
+</div>
+
+<div id="confirmModal" class="modal-overlay hidden">
+    <div class="modal-popup">
+        <h4 id="confirmTitle">确认操作</h4>
+        <p id="confirmText"></p>
+        <div class="confirm-actions">
+            <button onclick="closeConfirm()" class="btn-outline">取消</button>
+            <button id="confirmOkBtn" class="btn-danger">确认删除</button>
+        </div>
+    </div>
+</div>
+
+<div id="toastContainer" style="position:fixed;top:84px;right:32px;z-index:1000;display:flex;flex-direction:column;gap:8px;pointer-events:none"></div>
+
+<div id="globalOverlay" class="overlay hidden">
+    <div class="overlay-box">
+        <div class="spinner-inline" id="globalOverlayText">处理中...</div>
+    </div>
+</div>
+
+<!-- ═══════ 右键菜单 ═══════ -->
+<div id="contextMenu" class="context-menu hidden">
+    <div class="context-item" data-action="view">查看释义</div>
+    <div class="context-item" data-action="copy">复制单词</div>
+    <div class="context-divider"></div>
+    <div class="context-item danger" data-action="remove">从列表移除</div>
+</div>
+
+<!-- ═══════ 快捷键面板 ═══════ -->
+<div id="shortcutPanel" class="modal-overlay hidden" onclick="closeShortcuts()">
+    <div class="modal-popup" onclick="event.stopPropagation()" style="max-width:400px">
+        <span class="modal-close" onclick="closeShortcuts()">&times;</span>
+        <h4>快捷键</h4>
+        <div style="display:grid;gap:8px;margin-top:12px">
+            <div class="shortcut-row"><kbd>Ctrl + Enter</kbd> <span>提取单词</span></div>
+            <div class="shortcut-row"><kbd>Ctrl + S</kbd> <span>保存到 Neo4j</span></div>
+            <div class="shortcut-row"><kbd>Ctrl + K</kbd> <span>搜索单词</span></div>
+            <div class="shortcut-row"><kbd>Enter</kbd> <span>提交 AI 查询</span></div>
+            <div class="shortcut-row"><kbd>Esc</kbd> <span>关闭弹窗 / 菜单</span></div>
+            <div class="shortcut-row"><kbd>?</kbd> <span>快捷键面板</span></div>
+            <div class="shortcut-row"><kbd>右键</kbd> <span>单词操作菜单</span></div>
+        </div>
+    </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+//  DOM refs cache
+// ═══════════════════════════════════════════════════════════
+const $ = (s) => document.querySelector(s);
+const $$ = (s) => document.querySelectorAll(s);
+
+// ═══════════════════════════════════════════════════════════
+//  Theme
+// ═══════════════════════════════════════════════════════════
+(function initTheme() {
+    const saved = localStorage.getItem('ws-theme');
+    const theme = saved || 'dark';
+    document.documentElement.setAttribute('data-theme', theme);
+    $('.theme-toggle').textContent = theme === 'dark' ? '☀️' : '🌙';
+})();
+
+function toggleTheme() {
+    const cur = document.documentElement.getAttribute('data-theme');
+    const next = cur === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    localStorage.setItem('ws-theme', next);
+    $('.theme-toggle').textContent = next === 'dark' ? '☀️' : '🌙';
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Toast Queue
+// ═══════════════════════════════════════════════════════════
+let toastQueue = [];
+let toastActive = false;
+
+function showToast(msg, type = 'info') {
+    toastQueue.push({ msg, type });
+    if (!toastActive) processToastQueue();
+}
+
+function processToastQueue() {
+    if (!toastQueue.length) { toastActive = false; return; }
+    toastActive = true;
+    const { msg, type } = toastQueue.shift();
+    const t = document.createElement('div');
+    t.className = `toast toast-${type}`;
+    t.textContent = msg;
+    $('#toastContainer').appendChild(t);
+    requestAnimationFrame(() => t.classList.add('show'));
+    setTimeout(() => {
+        t.classList.remove('show');
+        setTimeout(() => { t.remove(); processToastQueue(); }, 350);
+    }, 2200);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Modal helpers
+// ═══════════════════════════════════════════════════════════
+function showHelp(text) {
+    $('#helpText').textContent = text;
+    $('#helpModal').classList.remove('hidden');
+}
+
+function closeHelp() { $('#helpModal').classList.add('hidden'); }
+
+let confirmCallback = null;
+function showConfirm(title, text, cb) {
+    $('#confirmTitle').textContent = title;
+    $('#confirmText').textContent = text;
+    $('#confirmModal').classList.remove('hidden');
+    confirmCallback = cb;
+}
+function closeConfirm() { $('#confirmModal').classList.add('hidden'); confirmCallback = null; }
+$('#confirmOkBtn').addEventListener('click', () => { if (confirmCallback) confirmCallback(); closeConfirm(); });
+
+function showGlobalOverlay(text) {
+    $('#globalOverlayText').textContent = text || '处理中...';
+    $('#globalOverlay').classList.remove('hidden');
+}
+function hideGlobalOverlay() { $('#globalOverlay').classList.add('hidden'); }
+
+function setBtnLoading(btn, textEl, loading) {
+    btn.disabled = loading;
+    if (loading) {
+        if (!textEl._original) textEl._original = textEl.textContent;
+        textEl.innerHTML = '<span class="btn-spinner"></span> ' + textEl._original;
+    } else {
+        if (textEl._original) textEl.textContent = textEl._original;
+    }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Textarea auto-resize + char counter
+// ═══════════════════════════════════════════════════════════
+const MAX_CHARS = 5000;
+(function initTextarea() {
+    const ta = $('#inputText');
+    const counter = $('#charCounter');
+
+    function autoResize() {
+        ta.style.height = 'auto';
+        ta.style.height = Math.min(ta.scrollHeight, 360) + 'px';
+    }
+
+    function updateCounter() {
+        const len = ta.value.length;
+        counter.textContent = len ? `${len} / ${MAX_CHARS} 字符` : '';
+        counter.className = 'char-counter';
+        if (len > MAX_CHARS * 0.9) counter.classList.add('near-limit');
+        if (len >= MAX_CHARS) counter.classList.add('at-limit');
+    }
+
+    ta.addEventListener('input', () => { autoResize(); updateCounter(); });
+    ta.addEventListener('focus', autoResize);
+})();
+
+// ═══════════════════════════════════════════════════════════
+//  Sidebar — event delegation
+// ═══════════════════════════════════════════════════════════
+function toggleSidebar() {
+    const sb = $('#sidebar');
+    sb.classList.toggle('collapsed');
+    $('#toggleSidebarBtn').textContent = sb.classList.contains('collapsed') ? '▶' : '◀';
+}
+
+// ═══════════════════════════════════════════════════════════
+//  侧边栏搜索 — 防抖 + 建议下拉 + 结果面板
+// ═══════════════════════════════════════════════════════════
+let searchTimer = null;
+let searchAbort = null;
+let searchSuppressInput = false;
+$('#sidebarSearch').addEventListener('input', function() {
+    if (searchSuppressInput) return;
+    clearTimeout(searchTimer);
+    const q = this.value.trim();
+    if (!q || q.length < 1) {
+        closeSuggestions();
+        return;
+    }
+    searchTimer = setTimeout(() => fetchSuggestions(q), 200);
+});
+
+$('#sidebarSearch').addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') { closeSuggestions(); this.blur(); return; }
+    if (e.key === 'Enter') {
+        const first = $('#searchSuggestionsInner').querySelector('.suggestion-item[data-word]');
+        if (first) {
+            clearTimeout(searchTimer);
+            const word = first.dataset.word;
+            closeSuggestions();
+            searchSuppressInput = true;
+            this.value = word;
+            setTimeout(() => { searchSuppressInput = false; }, 50);
+            fetchWordDetail(word);
+        }
+    }
+});
+
+async function fetchSuggestions(q) {
+    if (searchAbort) searchAbort.abort();
+    searchAbort = new AbortController();
+    try {
+        const resp = await fetch(`/api/search-words?q=${encodeURIComponent(q)}`, { signal: searchAbort.signal });
+        const data = await resp.json();
+        renderSuggestions(data.words || [], q);
+    } catch (e) {
+        if (e.name !== 'AbortError') renderSuggestions([], q);
+    }
+}
+
+function renderSuggestions(words, q) {
+    const inner = $('#searchSuggestionsInner');
+    if (!words.length) {
+        inner.innerHTML = '<div class="suggestion-item" style="color:rgba(255,255,255,0.5);cursor:default">无匹配结果</div>';
+    } else {
+        const shown = words.slice(0, 6);
+        const rest = words.slice(6);
+        inner.innerHTML = shown.map(w => {
+            const idx = w.toLowerCase().indexOf(q.toLowerCase());
+            const highlighted = idx >= 0
+                ? escapeHtml(w.substring(0, idx)) + '<b>' + escapeHtml(w.substring(idx, idx + q.length)) + '</b>' + escapeHtml(w.substring(idx + q.length))
+                : escapeHtml(w);
+            return `<div class="suggestion-item" data-word="${w}"><span class="suggestion-word">${highlighted}</span></div>`;
+        }).join('') + (rest.length ? `<div class="suggestion-item" style="color:rgba(255,255,255,0.5);font-size:0.76rem;cursor:default">还有 ${rest.length} 个，向下滚动查看更多</div>` : '');
+    }
+    $('#searchSuggestions').classList.add('open');
+}
+
+function closeSuggestions() {
+    $('#searchSuggestions').classList.remove('open');
+    if (searchAbort) { searchAbort.abort(); searchAbort = null; }
+}
+
+// 点击建议项 → 关闭下拉，获取单词释义显示在结果面板
+$('#searchSuggestionsInner').addEventListener('click', function(e) {
+    const item = e.target.closest('.suggestion-item');
+    if (!item || !item.dataset.word) return;
+    clearTimeout(searchTimer);
+    const word = item.dataset.word;
+    closeSuggestions();
+    searchSuppressInput = true;
+    $('#sidebarSearch').value = word;
+    setTimeout(() => { searchSuppressInput = false; }, 50);
+    fetchWordDetail(word);
+});
+
+// 点击搜索框外部关闭建议
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('.search-box-wrapper')) closeSuggestions();
+});
+
+// ── 搜索结果面板 ──
+let searchSelectedMeanings = {};
+let searchCurrentWord = null;
+
+async function fetchWordDetail(word) {
+    searchCurrentWord = word;
+    searchSelectedMeanings = {};
+    switchPanelTab('search');
+    const panel = $('#searchResultBox');
+    panel.innerHTML = '<div class="spinner-inline" style="justify-content:center;height:100%">加载中...</div>';
+    try {
+        const resp = await fetch(`/api/word-meanings?word=${encodeURIComponent(word)}`);
+        const data = await resp.json();
+        renderSearchResult(data);
+    } catch (e) {
+        panel.innerHTML = `<div class="search-result-empty">加载失败: ${escapeHtml(e.message)}</div>`;
+    }
+}
+
+function renderSearchResult(data) {
+    const panel = $('#searchResultBox');
+    if (!data.exists || !data.meanings.length) {
+        panel.innerHTML = `<div class="search-result-word">${escapeHtml(data.word)}</div><div style="padding:16px;color:var(--text-muted);font-size:0.85rem">该单词暂无已保存的释义</div>`;
+        return;
+    }
+    let html = `<div class="search-result-word">${escapeHtml(data.word)}</div>`;
+    for (const group of data.meanings) {
+        html += `<div class="search-result-pos-group">
+            <div class="search-result-pos-label">${group.abbr}</div>`;
+        for (const m of group.meanings) {
+            const key = `${data.word}|${group.pos}|${m}`;
+            const sel = searchSelectedMeanings[key] ? ' sel' : '';
+            html += `<span class="search-result-meaning${sel}" data-pos="${group.pos}" data-meaning="${m}">${escapeHtml(m)}</span>`;
+        }
+        html += '</div>';
+    }
+    html += `<div class="search-result-record">
+        <span class="hint-text" id="searchRecordHint">点击释义选中，然后记录</span>
+        <button class="btn-sm btn-primary" id="searchRecordBtn" disabled>记录</button>
+    </div>`;
+    panel.innerHTML = html;
+
+    // 释义点击代理
+    panel.addEventListener('click', function(e) {
+        const meaningEl = e.target.closest('.search-result-meaning');
+        const recordBtn = e.target.closest('#searchRecordBtn');
+        if (recordBtn) { recordSearchMeanings(); return; }
+        if (!meaningEl) return;
+        const pos = meaningEl.dataset.pos;
+        const meaning = meaningEl.dataset.meaning;
+        const key = `${searchCurrentWord}|${pos}|${meaning}`;
+        if (searchSelectedMeanings[key]) {
+            delete searchSelectedMeanings[key];
+        } else {
+            searchSelectedMeanings[key] = true;
+        }
+        // 更新视觉
+        meaningEl.classList.toggle('sel', !!searchSelectedMeanings[key]);
+        const hasSel = Object.keys(searchSelectedMeanings).length > 0;
+        $('#searchRecordHint').textContent = hasSel ? `已选中 ${Object.keys(searchSelectedMeanings).length} 条释义，点击记录 →` : '点击释义选中，然后记录';
+        $('#searchRecordBtn').disabled = !hasSel;
+    });
+}
+
+function recordSearchMeanings() {
+    for (const key of Object.keys(searchSelectedMeanings)) {
+        const parts = key.split('|');
+        updateQueryTimes(parts[0], 'select', parts[1], parts[2]);
+    }
+    showToast('已记录所选释义', 'success');
+    searchSelectedMeanings = {};
+    $('#searchRecordHint').textContent = '点击释义选中，然后记录';
+    $('#searchRecordBtn').disabled = true;
+    // 移除所有 sel 类
+    $('#searchResultBox').querySelectorAll('.search-result-meaning.sel').forEach(el => el.classList.remove('sel'));
+}
+
+// ═══════════════════════════════════════════════════════════
+//  面板 Tab 切换
+// ═══════════════════════════════════════════════════════════
+
+$$('.panel-tab').forEach(tab => {
+    tab.addEventListener('click', function() { switchPanelTab(this.dataset.tab); });
+});
+
+function switchPanelTab(name) {
+    $$('.panel-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+    $('#searchResultBox').classList.toggle('hidden', name !== 'search');
+    $('#dailyWordsBox').classList.toggle('hidden', name !== 'daily');
+}
+
+// ═══════════════════════════════════════════════════════════
+//  每日背诵单词
+// ═══════════════════════════════════════════════════════════
+
+let dailyWords = [];
+
+async function loadDailyWords() {
+    try {
+        const resp = await fetch('/api/daily-words');
+        const data = await resp.json();
+        dailyWords = data.words || [];
+        renderDailySection();
+    } catch (e) {
+        $('#dailySection').innerHTML = '<div class="daily-hint">加载每日单词失败</div>';
+    }
+}
+
+function renderDailySection() {
+    const el = $('#dailySection');
+    const hasWords = dailyWords.length > 0;
+
+    let html = '';
+    html += `<div class="daily-header">
+        <span class="daily-title">&nbsp;&nbsp;每日背诵</span>
+        <span class="daily-count">${hasWords ? '<span class="daily-count-label">今日背诵了 </span><span class="daily-count-num">' + dailyWords.length + '</span><span> 个单词</span>' : ''}</span>
+    </div>`;
+    if (!hasWords) {
+        html += `<div class="daily-hint">&nbsp;&nbsp;&nbsp;输入数量，点击生成今日背诵列表</div>`;
+        html += `<div class="daily-generate-row">
+            <span>&nbsp;&nbsp;</span>
+            <input type="number" id="dailyGenCount" value="10" min="1" max="100" />
+            <button class="daily-generate-btn btn-primary btn-sm" id="dailyGenBtn" onclick="generateDailyWords()">全新生成</button>
+            <span class="daily-inline-msg" id="dailyGenMsg"></span>
+        </div>`;
+    } else {
+        html += `<div class="daily-hint">&nbsp;&nbsp;&nbsp;悬停单词查看释义</div>`;
+
+        html += `<div class="daily-add-toggle" id="dailyAddToggle" onclick="toggleDailyAdd()">
+            <span class="dw-arrow">▶</span> 展开追加更多
+        </div>`;
+        html += `<div class="daily-add-body" id="dailyAddBody">
+            <div class="daily-add-row">
+                <span>&nbsp;&nbsp;</span>
+                <input type="number" id="dailyAddCount" value="5" min="1" max="50" />
+                <button class="btn-primary btn-sm" onclick="addDailyWords()">追加</button>
+                <span class="daily-inline-msg" id="dailyAddMsg"></span>
+            </div>
+        </div>`;
+
+        html += `<div class="daily-word-list" id="dailyWordList">`;
+        dailyWords.forEach((w, i) => {
+            html += `<div class="daily-word-item">
+                <span class="dw-index">${i + 1}.</span>
+                <span class="dw-word">${escapeHtml(w.word)}<span class="daily-word-tooltip">${escapeHtml(w.meaning_text || '暂无释义')}</span></span>
+            </div>`;
+        });
+        html += `</div>`;
+    }
+
+    el.innerHTML = html;
+}
+
+function inlineMsg(id, text, type) {
+    const el = $('#' + id);
+    if (!el) return;
+    el.textContent = text;
+    el.className = `daily-inline-msg show ${type}`;
+    clearTimeout(el._timer);
+    el._timer = setTimeout(() => { el.className = 'daily-inline-msg'; }, 2500);
+}
+
+async function generateDailyWords() {
+    const count = parseInt($('#dailyGenCount')?.value || 10);
+    if (!count || count < 1) { inlineMsg('dailyGenMsg', '请输入有效数量', 'error'); return; }
+
+    const btn = $('#dailyGenBtn');
+    const orig = btn.textContent;
+    btn.disabled = true; btn.textContent = '生成中...';
+
+    try {
+        const resp = await fetch('/api/generate-daily-words', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ count }),
+        });
+        const data = await resp.json();
+        if (data.ok) {
+            dailyWords = data.words;
+            inlineMsg('dailyGenMsg', '已生成', 'success');
+            setTimeout(() => renderDailySection(), 400);
+        } else {
+            inlineMsg('dailyGenMsg', data.message || '生成失败', 'error');
+            btn.disabled = false; btn.textContent = orig;
+        }
+    } catch (e) {
+        inlineMsg('dailyGenMsg', '网络错误', 'error');
+        btn.disabled = false; btn.textContent = orig;
+    }
+}
+
+async function addDailyWords() {
+    const count = parseInt($('#dailyAddCount')?.value || 5);
+    if (!count || count < 1) { inlineMsg('dailyAddMsg', '请输入有效数量', 'error'); return; }
+
+    try {
+        const resp = await fetch('/api/add-daily-words', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ count }),
+        });
+        const data = await resp.json();
+        if (data.ok) {
+            dailyWords = data.words;
+            inlineMsg('dailyAddMsg', `已追加 ${data.added} 个`, 'success');
+            setTimeout(() => renderDailySection(), 400);
+        } else {
+            inlineMsg('dailyAddMsg', data.message || '追加失败', 'error');
+        }
+    } catch (e) {
+        inlineMsg('dailyAddMsg', '网络错误', 'error');
+    }
+}
+
+function toggleDailyAdd() {
+    const toggle = $('#dailyAddToggle');
+    const body = $('#dailyAddBody');
+    toggle.classList.toggle('open');
+    body.classList.toggle('open');
+    toggle.querySelector('.dw-arrow').textContent = toggle.classList.contains('open') ? '▼' : '▶';
+}
+
+// 页面加载时获取每日单词
+document.addEventListener('DOMContentLoaded', loadDailyWords);
+
+// ═══════════════════════════════════════════════════════════
+//  全局状态
+// ═══════════════════════════════════════════════════════════
+let allWords = [];
+let selectedWord = null;
+let selectedWords = {};
+let selectedMeanings = {};
+let wordStates = {};
+
+function ensureState(w) {
+    if (!wordStates[w]) wordStates[w] = { manual: [], relations: [], synResults: [], antResults: [] };
+    return wordStates[w];
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Step 1: 提取单词
+// ═══════════════════════════════════════════════════════════
+async function extractWords() {
+    const text = $('#inputText').value.trim();
+    if (!text) return showToast('请先输入英文文本', 'error');
+
+    const btn = $('#extractBtn');
+    const textEl = $('#extractBtnText');
+    setBtnLoading(btn, textEl, true);
+    $('#extractSpinner').classList.remove('hidden');
+
+    try {
+        const resp = await fetch('/api/step1-extract', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text })
+        });
+        const data = await resp.json();
+        allWords = data.words;
+        renderWordChips();
+        const s2 = $('#step2Section');
+        s2.classList.remove('hidden');
+        // 触发入场动画
+        s2.classList.remove('reveal');
+        void s2.offsetWidth;
+        s2.classList.add('reveal');
+        // 平滑滚动
+        s2.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+        showToast(`已提取 ${allWords.length} 个单词`, 'success');
+    } catch (e) {
+        showToast('提取失败: ' + e.message, 'error');
+    }
+
+    setBtnLoading(btn, textEl, false);
+    $('#extractSpinner').classList.add('hidden');
+}
+
+function renderWordChips() {
+    $('#wordChips').innerHTML = allWords.map(w => {
+        const isActive = selectedWord === w.word;
+        const checked = selectedWords[w.word];
+        const cls = isActive ? 'chip-active' : '';
+        return `<span class="chip ${cls}" data-word="${w.word}">
+            ${w.word}
+            <span class="chip-check">${checked ? '✓' : ''}</span>
+        </span>`;
+    }).join('');
+    // 无单词时显示提示
+    if (!allWords.length) {
+        $('#wordChips').innerHTML = '<span class="hint-text">点击上方"提取单词"开始，然后勾选单词进行操作</span>';
+    }
+}
+
+// Chip click delegation
+$('#wordChips').addEventListener('click', function(e) {
+    const chip = e.target.closest('.chip');
+    if (!chip) return;
+    const word = chip.dataset.word;
+    // 切换勾选
+    toggleWordCheck(word);
+    // 选中（展开详情）
+    selectWord(word);
+});
+
+function toggleWordCheck(word) {
+    if (selectedWords[word]) {
+        delete selectedWords[word];
+        updateQueryTimes(word, 'unselect');
+    } else {
+        selectedWords[word] = true;
+        updateQueryTimes(word, 'select');
+    }
+    renderWordChips();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Step 2: 选中单词
+// ═══════════════════════════════════════════════════════════
+function selectWord(word) {
+    selectedWord = word;
+    ensureState(word);
+    renderWordChips();
+    $('#wordDetail').classList.remove('hidden');
+    $('#currentWordLabel').innerText = word;
+    renderExistingMeanings(word);
+    renderAddedMeanings();
+    renderConfirmedRel();
+    restoreSynState(word);
+    refreshDatalist();
+}
+
+function renderExistingMeanings(word) {
+    const info = allWords.find(w => w.word === word);
+    const div = $('#existingMeanings');
+    if (!info || !info.exists || !Object.keys(info.existing_meanings).length) {
+        div.innerHTML = '<p class="hint-text">该单词暂无已保存的释义</p>';
+        return;
+    }
+    const map = { noun: 'n.', verb: 'v.', adjective: 'adj.', adverb: 'adv.' };
+    let html = '<h5>已有释义（点击选中，下方按钮记录）</h5>';
+    for (const [pos, meanings] of Object.entries(info.existing_meanings)) {
+        html += `<p><b>${map[pos] || pos}</b>: `;
+        for (const m of meanings) {
+            const key = `${word}|${pos}|${m.meaning}`;
+            const isSel = selectedMeanings[key];
+            html += `<span class="meaning-click ${isSel ? 'meaning-sel' : ''}" data-pos="${pos}" data-meaning="${m.meaning}">
+                ${m.meaning} <span style="font-size:0.72rem;opacity:0.5">(${m.query_times})</span>
+            </span>`;
+        }
+        html += '</p>';
+    }
+    // 独立记录操作行
+    const hasSelected = Object.keys(selectedMeanings).some(k => k.startsWith(word + '|'));
+    html += `<div class="record-row">
+        <span class="hint-text">${hasSelected ? '已选中释义，点击记录 →' : '点击上方释义选中，然后点击记录'}</span>
+        <button class="btn-sm btn-primary" id="recordMeaningsBtn" ${hasSelected ? '' : 'disabled'}>记录</button>
+    </div>`;
+    div.innerHTML = html;
+}
+
+// Meaning click delegation — 只负责选中/取消
+$('#existingMeanings').addEventListener('click', function(e) {
+    const meaningEl = e.target.closest('.meaning-click');
+    const recordBtn = e.target.closest('#recordMeaningsBtn');
+    if (recordBtn) { recordCheckedMeanings(); return; }
+    if (!meaningEl) return;
+    const pos = meaningEl.dataset.pos;
+    const meaning = meaningEl.dataset.meaning;
+    const key = `${selectedWord}|${pos}|${meaning}`;
+    if (selectedMeanings[key]) {
+        delete selectedMeanings[key];
+        updateQueryTimes(selectedWord, 'unselect', pos, meaning);
+    } else {
+        selectedMeanings[key] = true;
+        updateQueryTimes(selectedWord, 'select', pos, meaning);
+    }
+    renderExistingMeanings(selectedWord);
+});
+
+function recordCheckedMeanings() {
+    for (const key of Object.keys(selectedMeanings)) {
+        if (!key.startsWith(selectedWord + '|')) continue;
+        const parts = key.split('|');
+        updateQueryTimes(selectedWord, 'select', parts[1], parts[2]);
+    }
+    showToast('已记录所选释义', 'success');
+}
+
+function posAbbr(pos) {
+    return { noun: 'n.', verb: 'v.', adjective: 'adj.', adverb: 'adv.' }[pos] || pos;
+}
+
+// ── 手动录入 ──
+async function addMeaning() {
+    const word = selectedWord;
+    const pos = $('#posSelect').value;
+    const meaning = $('#meaningInput').value.trim();
+    if (!meaning) return showToast('请输入中文释义', 'error');
+
+    const btn = $('#addMeaningBtn');
+    const textEl = $('#addMeaningBtnText');
+    setBtnLoading(btn, textEl, true);
+    try {
+        const resp = await fetch('/api/validate-pos', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ word, pos, meaning })
+        });
+        const result = await resp.json();
+        if (!result.valid) {
+            let msg = `<span class="warn-error">无法添加：</span>${result.reason || '释义不符合要求'}。`;
+            if (result.suggested_pos) msg += ` 建议词性: <b>${result.suggested_pos}</b>。`;
+            $('#posWarningText').innerHTML = msg;
+            $('#posWarning').className = 'warning-box warning-error';
+            $('#posWarning').classList.remove('hidden');
+        } else {
+            doAddMeaning(word, pos, meaning);
+            if (result.merge_hint) {
+                $('#posWarningText').innerHTML = `<span class="warn-merge">归并提示：</span>${result.merge_hint}`;
+                $('#posWarning').className = 'warning-box warning-merge';
+                $('#posWarning').classList.remove('hidden');
+            }
+        }
+    } catch (e) { doAddMeaning(word, pos, meaning); }
+    setBtnLoading(btn, textEl, false);
+}
+
+function confirmAddMeaning() { $('#posWarning').classList.add('hidden'); }
+
+function doAddMeaning(word, pos, meaning) {
+    const st = ensureState(word);
+    if (st.manual.some(m => m.pos === pos && m.meaning === meaning)) return;
+    st.manual.push({ pos, meaning });
+    $('#meaningInput').value = '';
+    $('#meaningInput').focus();
+    renderAddedMeanings();
+    refreshDatalist();
+}
+
+function renderAddedMeanings() {
+    const st = ensureState(selectedWord);
+    $('#addedMeanings').innerHTML = st.manual.map((m, i) =>
+        `<span class="meaning-tag">${posAbbr(m.pos)}${m.meaning}
+         <span class="del-btn" data-idx="${i}">✕</span></span>`
+    ).join('');
+}
+
+// Del btn delegation
+$('#addedMeanings').addEventListener('click', function(e) {
+    const del = e.target.closest('.del-btn');
+    if (!del) return;
+    const st = ensureState(selectedWord);
+    st.manual.splice(parseInt(del.dataset.idx), 1);
+    renderAddedMeanings();
+    refreshDatalist();
+});
+
+function refreshDatalist() {
+    const w = selectedWord; if (!w) return;
+    const dl = $('#meaningSuggestions');
+    const existing = new Set();
+    const info = allWords.find(x => x.word === w);
+    if (info && info.existing_meanings)
+        for (const meanings of Object.values(info.existing_meanings))
+            for (const m of meanings) existing.add(m.meaning);
+    for (const m of ensureState(w).manual) existing.add(m.meaning);
+    dl.innerHTML = [...existing].map(m => `<option value="${m}">`).join('');
+}
+
+async function updateQueryTimes(word, action = 'select', pos = '', meaning = '') {
+    try {
+        await fetch('/api/update-query-times', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ word, action, pos, meaning })
+        });
+    } catch (e) { /* 静默 */ }
+}
+
+// ── 近义/反义 ──
+$('#synToggle').addEventListener('click', toggleSynonym);
+function toggleSynonym() {
+    const c = $('#synContent');
+    const a = $('#synArrow');
+    const open = c.style.display === 'block';
+    c.style.display = open ? 'none' : 'block';
+    a.innerText = open ? '▶' : '▼';
+}
+function restoreSynState(word) {
+    const st = ensureState(word);
+    if (st.synResults.length || st.antResults.length) {
+        $('#synContent').style.display = 'block';
+        $('#synArrow').innerText = '▼';
+        renderSynResults('synonym');
+    }
+}
+
+$('#btnSynonym').addEventListener('click', () => fetchSynAnt('synonym'));
+$('#btnAntonym').addEventListener('click', () => fetchSynAnt('antonym'));
+
+async function fetchSynAnt(type) {
+    const word = selectedWord;
+    const spinner = $('#synSpinner');
+    const resultsDiv = $('#synResults');
+    spinner.classList.remove('hidden'); resultsDiv.innerHTML = '';
+
+    try {
+        const resp = await fetch(`/api/fetch-suggestions?word=${encodeURIComponent(word)}&type=${type}`);
+        const data = await resp.json();
+        const st = ensureState(word);
+        if (type === 'synonym') st.synResults = data.words || [];
+        else st.antResults = data.words || [];
+        renderSynResults(type);
+    } catch (e) {
+        resultsDiv.innerHTML = '<p class="warn">Datamuse 查询失败</p>';
+    }
+    spinner.classList.add('hidden');
+}
+
+function renderSynResults(type) {
+    const st = ensureState(selectedWord);
+    const words = type === 'synonym' ? st.synResults : st.antResults;
+    const div = $('#synResults');
+    if (!words.length) { div.innerHTML = '<p class="text-sm">没有在图库中找到</p>'; return; }
+    const existing = new Set(st.relations.filter(r => r.rel_type === type).map(r => r.target));
+    const filtered = words.filter(w => !existing.has(w));
+    if (!filtered.length) { div.innerHTML = '<p class="text-sm">已全部加入待保存列表</p>'; return; }
+    div.innerHTML = filtered.map(w =>
+        `<span class="chip" data-rel="${w}" data-type="${type}">${w} <span style="color:var(--color-primary)">+</span></span>`
+    ).join('');
+}
+
+// Syn results click delegation
+$('#synResults').addEventListener('click', function(e) {
+    const chip = e.target.closest('.chip');
+    if (!chip || !chip.dataset.rel) return;
+    addRelation(chip.dataset.rel, chip.dataset.type);
+});
+
+function addRelation(target, type) {
+    const st = ensureState(selectedWord);
+    if (st.relations.some(r => r.target === target && r.rel_type === type)) return;
+    st.relations.push({ target, rel_type: type });
+    renderSynResults(type);
+    renderConfirmedRel();
+    showToast(`${type === 'synonym' ? '近义词' : '反义词'} "${target}" 已加入待保存`, 'success');
+}
+
+function removeRelation(target, type) {
+    const st = ensureState(selectedWord);
+    st.relations = st.relations.filter(r => !(r.target === target && r.rel_type === type));
+    renderSynResults(type);
+    renderConfirmedRel();
+}
+
+function renderConfirmedRel() {
+    const st = ensureState(selectedWord);
+    const div = $('#confirmedWordRels');
+    if (!st.relations.length) { div.innerHTML = ''; return; }
+    div.innerHTML = st.relations.map(r =>
+        `<div class="link-item">${r.rel_type === 'synonym' ? '近义' : '反义'}: <b>${r.target}</b>
+         <span class="del-btn" data-rel="${r.target}" data-type="${r.rel_type}">✕</span></div>`
+    ).join('');
+}
+
+$('#confirmedWordRels').addEventListener('click', function(e) {
+    const del = e.target.closest('.del-btn');
+    if (!del || !del.dataset.rel) return;
+    removeRelation(del.dataset.rel, del.dataset.type);
+});
+
+// ── 删除释义 ──
+$('#delToggle').addEventListener('click', function() {
+    const c = $('#deleteModule');
+    const a = $('#delArrow');
+    const open = c.style.display === 'block';
+    c.style.display = open ? 'none' : 'block';
+    a.innerText = open ? '▶' : '▼';
+    if (!open) loadDeleteMeaningList();
+});
+
+function loadDeleteMeaningList() {
+    const word = selectedWord; if (!word) return;
+    const info = allWords.find(w => w.word === word);
+    const div = $('#deleteMeaningList');
+    if (!info || !info.exists || !Object.keys(info.existing_meanings).length) {
+        div.innerHTML = '<p class="text-sm">该单词在图库中没有已保存的释义</p>'; return;
+    }
+    const map = { noun: 'n.', verb: 'v.', adjective: 'adj.', adverb: 'adv.' };
+    let html = '';
+    for (const [pos, meanings] of Object.entries(info.existing_meanings)) {
+        for (const m of meanings) {
+            html += `<div class="meaning-row">
+                <span class="meaning-info"><span class="pos-badge">${map[pos] || pos}</span> ${m.meaning} <span class="text-sm">(查询${m.query_times}次)</span></span>
+                <button class="btn-sm btn-danger" data-pos="${pos}" data-meaning="${m.meaning.replace(/'/g, "\\'")}">删除</button>
+            </div>`;
+        }
+    }
+    div.innerHTML = html || '<p class="text-sm">没有可删除的释义</p>';
+}
+
+$('#deleteMeaningList').addEventListener('click', function(e) {
+    const btn = e.target.closest('.btn-danger');
+    if (!btn || !btn.dataset.pos) return;
+    deleteMeaningFromDB(selectedWord, btn.dataset.pos, btn.dataset.meaning);
+});
+
+async function deleteMeaningFromDB(word, pos, meaning) {
+    showConfirm('确认删除释义', `确定要删除「${word}」的「${posAbbr(pos)}${meaning}」吗？此操作不可撤销。`, async () => {
+        $('#deleteSpinner').classList.remove('hidden');
+        try {
+            const resp = await fetch('/api/delete-meaning', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ word, pos, meaning })
+            });
+            const data = await resp.json();
+            if (data.ok) {
+                showToast(`释义「${meaning}」已删除`, 'success');
+                await refreshWordData(word);
+            } else showToast(data.message || '删除失败', 'error');
+        } catch (e) { showToast('删除失败: ' + e.message, 'error'); }
+        $('#deleteSpinner').classList.add('hidden');
+    });
+}
+
+async function refreshWordData(word) {
+    try {
+        const resp = await fetch('/api/step1-extract', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: word })
+        });
+        const data = await resp.json();
+        const updated = data.words.find(w => w.word === word);
+        if (updated) {
+            const idx = allWords.findIndex(w => w.word === word);
+            if (idx >= 0) allWords[idx] = updated;
+        }
+        renderExistingMeanings(word);
+        loadDeleteMeaningList();
+    } catch (e) { /* 静默 */ }
+}
+
+// ── 保存 ──
+async function saveToNeo4j() {
+    if (!selectedWord) return;
+    const st = ensureState(selectedWord);
+    if (!st.manual.length) return showToast('请至少添加一条释义', 'error');
+
+    const resource = $('#resourceInput').value.trim() || '手动录入';
+    const selections = [];
+    for (const [w, state] of Object.entries(wordStates)) {
+        if (state.manual.length > 0) {
+            selections.push({
+                word: w, resource,
+                manual_meanings: state.manual,
+                relations: state.relations.map(r => ({ target_word: r.target, rel_type: r.rel_type }))
+            });
+        }
+    }
+    if (!selections.length) selections.push({
+        word: selectedWord, resource,
+        manual_meanings: st.manual,
+        relations: st.relations.map(r => ({ target_word: r.target, rel_type: r.rel_type }))
+    });
+
+    showGlobalOverlay('LLM 正在判断释义归并 & 建立关系...');
+    $('#saveBtn').disabled = true;
+
+    try {
+        const resp = await fetch('/api/step2-save', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ selections })
+        });
+        const data = await resp.json();
+        let html = '';
+        for (const r of data.results) html += `<p><b>${r.word}</b>: ${r.status === 'ok' ? '✓' : '✗'} ${escapeHtml(r.message)}</p>`;
+        $('#saveResult').innerHTML = html;
+        showToast('保存完成', 'success');
+        const savedWords = selections.map(s => s.word);
+        for (const sw of savedWords) {
+            const info = allWords.find(w => w.word === sw);
+            if (info) info.exists = true;
+        }
+        renderWordChips();
+    } catch (e) { showToast('保存失败: ' + e.message, 'error'); }
+
+    hideGlobalOverlay();
+    $('#saveBtn').disabled = false;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  AI 查询
+// ═══════════════════════════════════════════════════════════
+$('#aiQueryBtn').addEventListener('click', aiQuery);
+
+$('#aiQuery').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { e.preventDefault(); aiQuery(); }
+});
+
+async function aiQuery() {
+    const q = $('#aiQuery').value.trim();
+    if (!q) return showToast('请输入查询内容', 'error');
+    const resultDiv = $('#aiResult');
+    resultDiv.innerHTML = '<div class="spinner-inline">AI 思考中，正在生成 Cypher 查询...</div>';
+    $('#aiQueryBtn').disabled = true;
+
+    try {
+        const resp = await fetch('/api/ai-query', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ question: q })
+        });
+        const data = await resp.json();
+        const content = typeof data.result === 'string' ? data.result : JSON.stringify(data.result, null, 2);
+        resultDiv.innerHTML = `<pre>${escapeHtml(content)}</pre>`;
+    } catch (e) {
+        resultDiv.innerHTML = `<p class="warn">查询失败: ${escapeHtml(e.message)}</p>`;
+    }
+    $('#aiQueryBtn').disabled = false;
+}
+
+function escapeHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+// ═══════════════════════════════════════════════════════════
+//  右键菜单
+// ═══════════════════════════════════════════════════════════
+let ctxTargetWord = null;
+
+function showContextMenu(e, word) {
+    e.preventDefault();
+    ctxTargetWord = word;
+    const menu = $('#contextMenu');
+    menu.classList.remove('hidden');
+    menu.style.left = Math.min(e.clientX, window.innerWidth - 190) + 'px';
+    menu.style.top = Math.min(e.clientY, window.innerHeight - 150) + 'px';
+}
+
+function hideContextMenu() { $('#contextMenu').classList.add('hidden'); ctxTargetWord = null; }
+
+$('#contextMenu').addEventListener('click', function(e) {
+    const item = e.target.closest('.context-item');
+    if (!item) return;
+    const action = item.dataset.action;
+    if (action === 'view' && ctxTargetWord) { toggleWordCheck(ctxTargetWord); selectWord(ctxTargetWord); }
+    else if (action === 'copy' && ctxTargetWord) {
+        navigator.clipboard.writeText(ctxTargetWord).then(() => showToast(`已复制: ${ctxTargetWord}`, 'success'));
+    }
+    else if (action === 'remove' && ctxTargetWord) {
+        allWords = allWords.filter(w => w.word !== ctxTargetWord);
+        delete wordStates[ctxTargetWord];
+        delete selectedWords[ctxTargetWord];
+        if (selectedWord === ctxTargetWord) { selectedWord = null; $('#wordDetail').classList.add('hidden'); }
+        renderWordChips();
+        showToast(`已移除: ${ctxTargetWord}`, 'info');
+    }
+    hideContextMenu();
+});
+
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('#contextMenu')) hideContextMenu();
+});
+
+// ═══════════════════════════════════════════════════════════
+//  快捷键面板
+// ═══════════════════════════════════════════════════════════
+function openShortcuts() { $('#shortcutPanel').classList.remove('hidden'); }
+function closeShortcuts() { $('#shortcutPanel').classList.add('hidden'); }
+
+// ═══════════════════════════════════════════════════════════
+//  全局键盘快捷键
+// ═══════════════════════════════════════════════════════════
+document.addEventListener('keydown', function(e) {
+    // Escape：关闭所有弹窗、菜单、面板
+    if (e.key === 'Escape') {
+        closeHelp(); closeConfirm(); closeShortcuts(); hideContextMenu();
+        return;
+    }
+
+    const activeTag = document.activeElement?.tagName?.toLowerCase();
+    const isInput = activeTag === 'input' || activeTag === 'textarea' || activeTag === 'select' || document.activeElement?.isContentEditable;
+
+    // Ctrl+Enter: 在 textarea 中提取单词
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        if (document.activeElement === $('#inputText')) { e.preventDefault(); extractWords(); }
+        return;
+    }
+
+    // Ctrl+S: 保存
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); saveToNeo4j(); return; }
+
+    // Ctrl+K: 聚焦搜索
+    if ((e.ctrlKey || e.metaKey) && e.key === 'k') { e.preventDefault(); $('#sidebarSearch').focus(); return; }
+
+    // ?: 快捷键面板（非输入状态下）
+    if (e.key === '?' && !e.ctrlKey && !e.metaKey && !isInput) { e.preventDefault(); openShortcuts(); return; }
+
+    // Enter on meaningInput → add
+    if (e.key === 'Enter' && document.activeElement === $('#meaningInput')) {
+        e.preventDefault(); addMeaning();
+    }
+});
+
+// ── 按钮事件绑定 ──
+$('#extractBtn').addEventListener('click', extractWords);
+$('#saveBtn').addEventListener('click', saveToNeo4j);
+$('#addMeaningBtn').addEventListener('click', addMeaning);
+$('#toggleSidebarBtn').addEventListener('click', toggleSidebar);
+</script>
+</body>
+</html>
