@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>__PAGE_TITLE__ — WordStudy</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<div class="browse-container">
+
+<!-- ═══════════ Header ═══════════ -->
+<header class="browse-header">
+    <a class="browse-logo" href="/" title="返回首页">WordStudy</a>
+    <nav class="browse-nav">
+        <a class="browse-nav-item __PAGE_ID__-words" href="/words">总单词</a>
+        <a class="browse-nav-item __PAGE_ID__-meanings" href="/meanings">总释义</a>
+        <a class="browse-nav-item __PAGE_ID__-synonyms" href="/synonyms">近义词</a>
+        <a class="browse-nav-item __PAGE_ID__-antonyms" href="/antonyms">反义词</a>
+    </nav>
+    <div class="browse-theme-toggle" onclick="toggleTheme()" title="切换暗色/亮色模式">🌙</div>
+</header>
+
+<!-- ═══════════ Main Content ═══════════ -->
+<main class="browse-main" id="browseMain">
+    <div class="browse-content" id="browseContent">
+        <div class="browse-loading" id="browseLoading">
+            <div class="browse-spinner"></div>
+            <span>正在加载数据...</span>
+        </div>
+    </div>
+</main>
+
+</div>
+
+<!-- ═══════════ Custom Tooltip ═══════════ -->
+<div class="browse-tooltip" id="browseTooltip"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+//  Theme
+// ═══════════════════════════════════════════════════════════
+(function initTheme() {
+    const saved = localStorage.getItem('ws-theme');
+    const theme = saved || 'dark';
+    document.documentElement.setAttribute('data-theme', theme);
+    document.querySelector('.browse-theme-toggle').textContent = theme === 'dark' ? '☀️' : '🌙';
+})();
+
+function toggleTheme() {
+    const cur = document.documentElement.getAttribute('data-theme');
+    const next = cur === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    localStorage.setItem('ws-theme', next);
+    document.querySelector('.browse-theme-toggle').textContent = next === 'dark' ? '☀️' : '🌙';
+}
+
+function scrollToTop() {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Highlight current page nav item
+// ═══════════════════════════════════════════════════════════
+const PAGE_ID = '__PAGE_ID__';
+(function highlightNav() {
+    const items = document.querySelectorAll('.browse-nav-item');
+    items.forEach(item => {
+        if (item.classList.contains(PAGE_ID + '-words') && PAGE_ID === 'words') item.classList.add('active');
+        if (item.classList.contains(PAGE_ID + '-meanings') && PAGE_ID === 'meanings') item.classList.add('active');
+        if (item.classList.contains(PAGE_ID + '-synonyms') && PAGE_ID === 'synonyms') item.classList.add('active');
+        if (item.classList.contains(PAGE_ID + '-antonyms') && PAGE_ID === 'antonyms') item.classList.add('active');
+    });
+})();
+
+// ═══════════════════════════════════════════════════════════
+//  Custom Tooltip
+// ═══════════════════════════════════════════════════════════
+const tooltip = document.getElementById('browseTooltip');
+let tooltipTimer = null;
+
+function showTooltip(e, html) {
+    clearTimeout(tooltipTimer);
+    tooltip.innerHTML = html;
+    tooltip.classList.add('show');
+    positionTooltip(e);
+}
+
+function positionTooltip(e) {
+    const pad = 14;
+    let x = e.clientX + pad;
+    let y = e.clientY + pad;
+    const rect = tooltip.getBoundingClientRect();
+    if (x + rect.width > window.innerWidth - 10) x = e.clientX - rect.width - pad;
+    if (y + rect.height > window.innerHeight - 10) y = e.clientY - rect.height - pad;
+    if (x < 10) x = 10;
+    if (y < 10) y = 10;
+    tooltip.style.left = x + 'px';
+    tooltip.style.top = y + 'px';
+}
+
+function moveTooltip(e) {
+    if (!tooltip.classList.contains('show')) return;
+    positionTooltip(e);
+}
+
+function hideTooltip() {
+    tooltipTimer = setTimeout(() => {
+        tooltip.classList.remove('show');
+    }, 150);
+}
+
+function holdTooltip() {
+    clearTimeout(tooltipTimer);
+}
+
+document.addEventListener('mousemove', moveTooltip);
+tooltip.addEventListener('mouseenter', holdTooltip);
+tooltip.addEventListener('mouseleave', hideTooltip);
+
+// ═══════════════════════════════════════════════════════════
+//  Escape HTML
+// ═══════════════════════════════════════════════════════════
+function esc(s) {
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Build tooltip HTML for a word's meanings
+// ═══════════════════════════════════════════════════════════
+function buildMeaningsTooltip(word, meanings) {
+    if (!meanings || Object.keys(meanings).length === 0) {
+        return '<div class="bt-word">' + esc(word) + '</div><div class="bt-empty">暂无释义</div>';
+    }
+    var html = '<div class="bt-word">' + esc(word) + '</div>';
+    var posList = Object.keys(meanings);
+    for (var i = 0; i < posList.length; i++) {
+        var pos = posList[i];
+        var arr = meanings[pos];
+        html += '<div class="bt-line"><span class="bt-pos">' + esc(pos) + '</span>' + esc(arr.join('，')) + '</div>';
+    }
+    return html;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Build tooltip HTML from data-meanings JSON
+// ═══════════════════════════════════════════════════════════
+function tooltipFromMeanings(word, jsonStr) {
+    try {
+        var meanings = JSON.parse(jsonStr);
+        return buildMeaningsTooltip(word, meanings);
+    } catch (e) {
+        return '<div class="bt-word">' + esc(word) + '</div><div class="bt-empty">暂无释义</div>';
+    }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Build simple text tooltip (for meanings page)
+// ═══════════════════════════════════════════════════════════
+function tooltipSimple(text) {
+    return '<div class="bt-word">关联单词</div><div class="bt-line">' + esc(text) + '</div>';
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Intersection Observer — reveal rows on scroll
+// ═══════════════════════════════════════════════════════════
+const io = new IntersectionObserver(function(entries) {
+    entries.forEach(function(entry) {
+        if (entry.isIntersecting) {
+            entry.target.classList.add('visible');
+            io.unobserve(entry.target);
+        }
+    });
+}, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+
+function observeRows() {
+    document.querySelectorAll('.browse-row').forEach(function(row) {
+        io.observe(row);
+    });
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Data loading & rendering
+// ═══════════════════════════════════════════════════════════
+const API_MAP = {
+    'words': '/api/browse/words',
+    'meanings': '/api/browse/meanings',
+    'synonyms': '/api/browse/synonyms',
+    'antonyms': '/api/browse/antonyms',
+};
+
+async function loadData() {
+    const url = API_MAP[PAGE_ID];
+    if (!url) return;
+    try {
+        const resp = await fetch(url);
+        const json = await resp.json();
+        if (!json.ok) {
+            document.getElementById('browseContent').innerHTML =
+                '<div class="browse-error">加载失败: ' + esc(json.error || '未知错误') + '</div>';
+            return;
+        }
+        renderPage(json.data);
+    } catch (e) {
+        document.getElementById('browseContent').innerHTML =
+            '<div class="browse-error">网络错误: ' + esc(e.message) + '</div>';
+    }
+}
+
+function renderPage(data) {
+    const container = document.getElementById('browseContent');
+    document.getElementById('browseLoading').classList.add('hidden');
+
+    if (PAGE_ID === 'words') renderWords(container, data);
+    else if (PAGE_ID === 'meanings') renderMeanings(container, data);
+    else if (PAGE_ID === 'synonyms') renderClusters(container, data, 'synonym');
+    else if (PAGE_ID === 'antonyms') renderClusters(container, data, 'antonym');
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Render: 总单词
+// ═══════════════════════════════════════════════════════════
+function renderWords(container, data) {
+    // data: { "A": [{word, meanings}, ...], "B": [...], ... }
+    let html = '';
+    const letters = Object.keys(data);
+    if (letters.length === 0) {
+        container.innerHTML = '<div class="browse-empty">暂无单词数据</div>';
+        return;
+    }
+
+    let globalRowIdx = 0;
+
+    for (const letter of letters) {
+        const words = data[letter];
+        // Letter label
+        html += '<div class="browse-letter-label" style="animation-delay:' + (globalRowIdx * 0.08) + 's">' + esc(letter) + '</div>';
+
+        // Chunk words into rows
+        html += '<div class="browse-letter-group">';
+        const rowChunks = chunkWordsIntoRows(words);
+        rowChunks.forEach(function(rowWords, ri) {
+            html += '<div class="browse-row" style="animation-delay:' + (globalRowIdx * 0.06) + 's">';
+            rowWords.forEach(function(w) {
+                const meaningsJson = JSON.stringify(w.meanings).replace(/"/g, '&quot;');
+                html += '<span class="browse-pill" data-meanings="' + meaningsJson + '" data-word="' + esc(w.word) + '">' + esc(w.word) + '</span>';
+            });
+            html += '</div>';
+            globalRowIdx++;
+        });
+        html += '</div>';
+    }
+
+    container.innerHTML = html;
+
+    // Bind tooltip events
+    bindPillTooltips();
+    observeRows();
+}
+
+function chunkWordsIntoRows(words) {
+    // Estimate ~15-20 pills per row; use dynamic approach with flex-wrap
+    // We just put all in one row per letter group and let flex-wrap handle it
+    // But for animation we chunk into groups of ~18
+    const chunkSize = 18;
+    const chunks = [];
+    for (let i = 0; i < words.length; i += chunkSize) {
+        chunks.push(words.slice(i, i + chunkSize));
+    }
+    return chunks;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Render: 总释义
+// ═══════════════════════════════════════════════════════════
+function renderMeanings(container, data) {
+    // data: [{element_id, pos, means_text, words: [str]}, ...]
+    if (!data || data.length === 0) {
+        container.innerHTML = '<div class="browse-empty">暂无释义数据</div>';
+        return;
+    }
+
+    const chunkSize = 18;
+    let html = '';
+
+    for (let i = 0; i < data.length; i += chunkSize) {
+        const chunk = data.slice(i, i + chunkSize);
+        html += '<div class="browse-row" style="animation-delay:' + (Math.floor(i / chunkSize) * 0.06) + 's">';
+        chunk.forEach(function(m) {
+            const wordsStr = m.words && m.words.length > 0 ? m.words.join(', ') : '无关联单词';
+            const displayText = m.pos ? m.pos + m.means_text : m.means_text;
+            html += '<span class="browse-pill browse-pill-meaning" data-tooltip-text="' + esc(wordsStr) + '">'
+                  + esc(displayText) + '</span>';
+        });
+        html += '</div>';
+    }
+
+    container.innerHTML = html;
+    bindPillTooltips();
+    observeRows();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Render: 近义词 / 反义词
+// ═══════════════════════════════════════════════════════════
+function renderClusters(container, data, type) {
+    // data: [{words: [{word, meanings}], pairs: [[a,b],...]}, ...]
+    if (!data || data.length === 0) {
+        const label = type === 'synonym' ? '近义词' : '反义词';
+        container.innerHTML = '<div class="browse-empty">暂无' + label + '关系数据</div>';
+        return;
+    }
+
+    let html = '';
+    data.forEach(function(cluster, ci) {
+        const words = cluster.words;
+        const pairs = cluster.pairs;
+        if (words.length < 2) return;
+
+        html += '<div class="browse-cluster-card" style="animation-delay:' + (ci * 0.1) + 's">';
+        html += '<div class="browse-cluster-header">' + (type === 'synonym' ? '近义词簇' : '反义词对') + ' #' + (ci + 1) + '</div>';
+        html += '<div class="browse-cluster-body" id="cluster-' + ci + '">';
+        html += '<div class="browse-cluster-words">';
+
+        words.forEach(function(w, wi) {
+            const meaningsJson = JSON.stringify(w.meanings).replace(/"/g, '&quot;');
+            html += '<span class="browse-pill browse-pill-cluster" data-cluster="' + ci + '" data-idx="' + wi
+                  + '" data-word="' + esc(w.word) + '" data-meanings="' + meaningsJson + '">' + esc(w.word) + '</span>';
+        });
+
+        html += '</div>';
+        html += '<svg class="browse-cluster-svg" id="svg-' + ci + '"></svg>';
+        html += '</div></div>';
+    });
+
+    container.innerHTML = html;
+
+    // Draw SVG lines after DOM is rendered
+    requestAnimationFrame(function() {
+        data.forEach(function(cluster, ci) {
+            if (cluster.words.length < 2) return;
+            drawClusterLines(ci, cluster);
+        });
+    });
+
+    bindPillTooltips();
+    observeClusterCards();
+}
+
+function drawClusterLines(ci, cluster) {
+    const svg = document.getElementById('svg-' + ci);
+    const body = document.getElementById('cluster-' + ci);
+    if (!svg || !body) return;
+
+    const bodyRect = body.getBoundingClientRect();
+    svg.setAttribute('width', body.offsetWidth);
+    svg.setAttribute('height', body.offsetHeight);
+    svg.style.position = 'absolute';
+    svg.style.top = '0';
+    svg.style.left = '0';
+    svg.style.pointerEvents = 'none';
+    svg.style.zIndex = '0';
+
+    const pills = body.querySelectorAll('.browse-pill-cluster');
+    const wordMap = {};
+    pills.forEach(function(pill) {
+        const w = pill.dataset.word;
+        const rect = pill.getBoundingClientRect();
+        wordMap[w] = {
+            cx: rect.left - bodyRect.left + rect.width / 2,
+            cy: rect.top - bodyRect.top + rect.height / 2,
+        };
+    });
+
+    const pairs = cluster.pairs;
+    let svgContent = '';
+    pairs.forEach(function(pair, pi) {
+        const a = wordMap[pair[0]];
+        const b = wordMap[pair[1]];
+        if (!a || !b) return;
+        const len = Math.sqrt(Math.pow(b.cx - a.cx, 2) + Math.pow(b.cy - a.cy, 2));
+        svgContent += '<line x1="' + a.cx + '" y1="' + a.cy + '" x2="' + b.cx + '" y2="' + b.cy
+                    + '" class="browse-svg-line" style="animation-delay:' + (pi * 0.15) + 's;'
+                    + 'stroke-dasharray:' + len + ';stroke-dashoffset:' + len + '" />';
+    });
+    svg.innerHTML = svgContent;
+
+    // Trigger line animation
+    requestAnimationFrame(function() {
+        svg.querySelectorAll('.browse-svg-line').forEach(function(line) {
+            line.style.strokeDashoffset = '0';
+        });
+    });
+}
+
+// Redraw lines on resize
+let resizeTimer;
+window.addEventListener('resize', function() {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function() {
+        if (PAGE_ID === 'synonyms' || PAGE_ID === 'antonyms') {
+            // Re-trigger cluster line drawing
+            document.querySelectorAll('.browse-cluster-card').forEach(function(card, ci) {
+                const svg = card.querySelector('.browse-cluster-svg');
+                if (svg) {
+                    svg.querySelectorAll('.browse-svg-line').forEach(function(line) {
+                        line.style.strokeDasharray = '0';
+                        line.style.strokeDashoffset = '0';
+                    });
+                }
+            });
+        }
+    }, 300);
+});
+
+function observeClusterCards() {
+    document.querySelectorAll('.browse-cluster-card').forEach(function(card) {
+        io.observe(card);
+    });
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Tooltip binding for pills
+// ═══════════════════════════════════════════════════════════
+function bindPillTooltips() {
+    document.querySelectorAll('.browse-pill[data-meanings]').forEach(function(pill) {
+        pill.addEventListener('mouseenter', function(e) {
+            var word = pill.dataset.word || '';
+            var html = tooltipFromMeanings(word, pill.dataset.meanings);
+            showTooltip(e, html);
+        });
+        pill.addEventListener('mouseleave', hideTooltip);
+    });
+    document.querySelectorAll('.browse-pill[data-tooltip-text]').forEach(function(pill) {
+        pill.addEventListener('mouseenter', function(e) {
+            showTooltip(e, tooltipSimple(pill.dataset.tooltipText));
+        });
+        pill.addEventListener('mouseleave', hideTooltip);
+    });
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Init
+// ═══════════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', loadData);
+</script>
+
+</body>
+</html>
