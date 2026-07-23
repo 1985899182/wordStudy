@@ -45,6 +45,13 @@ from word_study.utils.relation_tools import (
 )
 from word_study.services.neo4j_client import get_graph
 from word_study.utils.logging_utils import get_logger
+import random
+from datetime import date as dt_date
+from pydantic import BaseModel as _PydanticBase
+from word_study.services.sqlite_client import get_daily_words_today, save_daily_words
+from word_study.services.spaced_repetition import (
+    add_review, get_due_words, get_today_pending_count,
+)
 
 _logger = get_logger(__name__)
 
@@ -612,9 +619,6 @@ def word_meanings(word: str = Query(..., min_length=1, description="单词")):
 #  每日背诵单词 API
 # ══════════════════════════════════════════════════════════
 
-from datetime import date as dt_date
-from word_study.services.sqlite_client import get_daily_words_today, save_daily_words
-import random
 
 
 # ══════════════════════════════════════════════════════════
@@ -760,10 +764,6 @@ def _pos_abbr(pos: str) -> str:
 #  SM-2 间隔重复复习 API (v2)
 # ══════════════════════════════════════════════════════════
 
-from word_study.services.spaced_repetition import (
-    add_review, get_due_words, get_today_pending_count,
-)
-from pydantic import BaseModel as _PydanticBase
 
 
 class ReviewRequest(_PydanticBase):

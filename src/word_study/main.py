@@ -1,13 +1,6 @@
 """
 WordStudy -- FastAPI entry point.
 """
-import sys
-from pathlib import Path
-
-_SRC_DIR = Path(__file__).resolve().parent.parent
-if str(_SRC_DIR) not in sys.path:
-    sys.path.insert(0, str(_SRC_DIR))
-
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -18,6 +11,7 @@ from word_study.config import validate_config, BASE_DIR
 from word_study.services.sqlite_client import init_db
 from word_study.utils.word_tools import init_alphabet_nodes
 from word_study.utils.logging_utils import get_logger
+from word_study.routers.word_router import router as word_router
 
 _logger = get_logger(__name__)
 
@@ -83,7 +77,6 @@ def _browse_page(page: str) -> str:
     return html
 
 
-from word_study.routers.word_router import router as word_router
 app.include_router(word_router)
 
 
